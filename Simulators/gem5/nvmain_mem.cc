@@ -378,7 +378,22 @@ NVMainMemory::MemoryPort::recvAtomic(PacketPtr pkt)
 
         /* initialize the request so that NVMain can correctly serve it */
         request->access = UNKNOWN_ACCESS;
-        request->address.SetPhysicalAddress(pkt->req->getPaddr());
+
+        // translate the address
+
+        Addr translated_addr = pkt->req->getPaddr();
+        uint64_t dram_size = 16 * 128;
+        uint64_t nvm_base = 0x100000000;
+        if(translated_addr >= (Addr)(dram_size << 12))
+        {
+            translated_addr = nvm_base + (translated_addr - (dram_size << 12));
+            //pkt->req->setPaddr(nvm_base + (translated_addr - (dram_size << 12)));
+        }
+
+//        std::cout<<translated_addr<<"<---------"<<pkt->req->getPaddr()<<std::endl;
+        //request->address.SetPhysicalAddress(pkt->req->getPaddr());
+        request->address.SetPhysicalAddress(translated_addr);
+
         request->status = MEM_REQUEST_INCOMPLETE;
         request->type = (pkt->isRead()) ? READ : WRITE;
         request->owner = (NVMObject *)&memory;
@@ -494,13 +509,50 @@ NVMainMemory::MemoryPort::recvTimingReq(PacketPtr pkt)
 #endif
 
     request->access = UNKNOWN_ACCESS;
-    request->address.SetPhysicalAddress(pkt->req->getPaddr() - addressFixUp);
+    
+    // translate the address
+
+    Addr translated_addr = pkt->req->getPaddr();
+    uint64_t dram_size = 16 * 128;
+    uint64_t nvm_base = 0x100000000;
+    if(translated_addr >= (Addr)(dram_size << 12))
+    {
+        translated_addr = nvm_base + (translated_addr - (dram_size << 12));
+        //pkt->req->setPaddr(nvm_base + (translated_addr - (dram_size << 12)));
+    }
+
+  //  std::cout<<translated_addr<<"<---------"<<pkt->req->getPaddr()<<std::endl;
+    //request->address.SetPhysicalAddress(pkt->req->getPaddr());
+    request->address.SetPhysicalAddress(translated_addr - addressFixUp);
+    //request->address.SetPhysicalAddress(pkt->req->getPaddr() - addressFixUp);
     request->status = MEM_REQUEST_INCOMPLETE;
     request->type = (pkt->isRead()) ? READ : WRITE;
     request->owner = (NVMObject *)&memory;
 
     if(pkt->req->hasPC()) request->programCounter = pkt->req->getPC();
     if(pkt->req->hasContextId()) request->threadId = pkt->req->contextId();
+
+    /*gyx:for debug  output the physical address;*/
+        uint8_t *bitCountData = new uint8_t[request->data.GetSize()];
+        for( uint64_t bitCountByte = 0; bitCountByte < request->data.GetSize(); bitCountByte++ )
+        {
+            bitCountData[bitCountByte] = request->data.GetByte( bitCountByte );
+        }
+        ncycle_t currentCycle = memory.masterInstance->m_nvmainGlobalEventQueue->GetCurrentCycle();
+        char op_char=(pkt->isRead()) ? 'R' : 'W';
+	    std::ofstream output_trace;
+	    output_trace.open("/home/hx/gem5/Trace0.txt",std::ios::app);
+	    output_trace<<currentCycle<<" "
+                <<op_char<<" "
+                <<request->address.GetPhysicalAddress()<<" ";
+                for( uint64_t bitCountByte = 0; bitCountByte < request->data.GetSize(); bitCountByte++ )
+                {
+                    output_trace<<std::hex<<+bitCountData[bitCountByte];
+                }
+        output_trace<<" "<<request->threadId<<std::endl;
+        
+
+
 
     /* Call hooks here manually, since there is no one else to do it. */
     std::vector<NVMObject *>& preHooks  = memory.masterInstance->GetHooks( NVMHOOK_PREISSUE );

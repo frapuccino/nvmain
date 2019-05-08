@@ -40,6 +40,4 @@ if 'NVMAIN_BUILD' in env:
 
 
 NVMainSource('CoinMigrator.cpp')
-NVMainSource('STC.cpp')
-NVMainSource('Lru.cpp')
 NVMainSource('VictimPageList.cpp')

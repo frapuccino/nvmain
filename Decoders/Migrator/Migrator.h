@@ -37,10 +37,10 @@
 #include "src/AddressTranslator.h"
 #include "src/Config.h"
 #include "include/NVMAddress.h"
-#include "Utils/CoinMigrator/STentry.h"
+#include "Utils/CoinMigrator/ST_entry.h"
 #include <unordered_map>
 using namespace std;
-
+#define MAX_UINT64 0xFFFFFFFFFFFFFFFF
 namespace NVM
 {
 
@@ -72,17 +72,17 @@ class Migrator : public AddressTranslator
     using AddressTranslator::Translate;
 
     void StartMigration( NVMAddress& promotee, NVMAddress& demotee );
-    void StartMigration( NVMAddress& promotee, NVMAddress& demotee, unordered_map<uint64_t, STentry>& remap_table);
     void SetMigrationState( NVMAddress& address, MigratorState newState );
     bool Migrating( );
     bool IsBuffered( NVMAddress& address );
     bool IsMigrated( NVMAddress& address );
     
     bool IsMapped(uint64_t addr);
-    void Add2RemapTable(uint64_t addr, STentry stentry);
-    STentry GetEntryFromRemapTable(uint64_t addr);
+    void Add2RemapTable(uint64_t addr, ST_entry stentry);
+    ST_entry GetEntryFromRemapTable(uint64_t addr);
     uint64_t GetFromInvertedTable(uint64_t addr);
     void Add2InvertedTable(uint64_t src_addr, uint64_t dst_addr);
+    bool IsInDRAM(uint64_t address);
 
     void RegisterStats( );
 
@@ -90,7 +90,7 @@ class Migrator : public AddressTranslator
     void RestoreCheckpoint( std::string dir );
 
   private:
-    std::unordered_map<uint64_t, STentry> remap_table;
+    std::unordered_map<uint64_t, ST_entry> remap_table;
     std::unordered_map<uint64_t, uint64_t> inverted_table;
     std::map<uint64_t, uint64_t> migrationMap;
     std::map<uint64_t, MigratorState> migrationState;

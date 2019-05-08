@@ -38,13 +38,20 @@
 #include "src/Params.h"
 #include "include/NVMainRequest.h"
 
-#include "STentry.h"
 #include "VictimPageList.h"
 #include "STC.h"
 #include <ctime>
 #include <cstdlib>
 #include <iostream>
 #include <assert.h>
+#include <unordered_set>
+#include "STC_entry.h"
+#include "ST_entry.h"
+
+#define THETA 68
+#define MAX_FEATURE_CNT 10
+#define PRED_TABLE_SIZE 1024
+#define COST 9
 
 namespace NVM {
 
@@ -66,7 +73,13 @@ class CoinMigrator : public NVMObject
     bool RequestComplete( NVMainRequest *request );
 
     unsigned char GetQACV(int access_counts);
-    void InsertToSTC(Node node);
+    //void InsertToSTC(Node node);
+    
+    void UpdateAddrHistory(uint64_t address);
+    void UpdateQACHistory(unsigned char my_QAC);
+    unsigned char GetQACBy(unsigned int benefit);
+    void GetFeatureIndex(uint64_t hash[], unsigned char my_QAC, uint64_t address, int feature_cnt);
+    void Train_in_STC(uint64_t hash[], uint64_t address, bool writeOp, int feature_cnt);
 
     void Cycle( ncycle_t steps );
 
@@ -81,7 +94,7 @@ class CoinMigrator : public NVMObject
     VictimPageList *victim_page_list;
     int minbenefit;
     int cur_epoch;
-    STC* stc_cache;
+    STC<STC_entry>* stc_cache;
     int stc_size;
     int interval;
     int accum_cnt[4];
@@ -108,6 +121,23 @@ int a2;
     ncounter_t migrationCount;
     ncounter_t queueWaits;
     ncounter_t bufferedReads;
+    int stc_hit;
+    int stc_access;
+    double stc_hit_rate;
+
+    int feature_cnt;
+    signed char pred_table[MAX_FEATURE_CNT][PRED_TABLE_SIZE];
+    uint64_t addr_history[3];
+    unsigned char QAC_history[3];
+    int Tbypass;
+
+    ncounter_t dram_hit;
+    ncounter_t memory_access;
+    ncounter_t nvm_hit;
+    ncounter_t nvm_read;
+    ncounter_t nvm_write;
+
+    std::unordered_set<uint64_t> uniq_checker;
 
     bool CheckIssuable( NVMAddress address, OpType type );
     bool TryMigration( NVMainRequest *request, bool atomic );

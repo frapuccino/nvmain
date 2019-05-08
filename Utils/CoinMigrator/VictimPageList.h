@@ -2,6 +2,7 @@
 #define VICTIMPAGELIST_H
 #include <list>
 #include <unordered_map>
+#include <iostream>
 using namespace std;
 
 class VictimPageList
@@ -10,6 +11,8 @@ class VictimPageList
         VictimPageList(uint64_t memory_size); //pageCounts;
         void RemovePage(uint64_t page_number);
         uint64_t UsePage();
+        bool IsFree(uint64_t page_number);
+        void Show();
         int Size();
         void GarbageCollection(uint64_t page_number);
         virtual ~VictimPageList();

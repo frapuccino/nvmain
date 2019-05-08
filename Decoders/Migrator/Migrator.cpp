@@ -109,15 +109,17 @@ void Migrator::StartMigration( NVMAddress& promotee, NVMAddress& demotee)
      *  the promotion channel as the demotion address' value and similarly
      *  for demotion channel.
      */
-
+/*
     uint64_t promo_addr = promotee.GetPhysicalAddress();
     uint64_t demo_addr = demotee.GetPhysicalAddress();
     uint64_t real_demo_addr = GetFromInvertedTable(demo_addr);
     uint64_t tmp;
+*/
 //    cout<<"addr:"<<promo_addr<<"------------------->real_addr:"<<tmp<<endl;
 //    cout<<"from "<<tmp <<" ****to****> "<<demo_addr<<endl;
-    uint64_t tmp1;
+ //   uint64_t tmp1;
   //  unsigned char qac;
+/*
     tmp1 = remap_table[promo_addr].channel ;
     remap_table[promo_addr].channel = remap_table[real_demo_addr].channel;
     remap_table[real_demo_addr].channel = tmp1;
@@ -126,6 +128,7 @@ void Migrator::StartMigration( NVMAddress& promotee, NVMAddress& demotee)
     remap_table[promo_addr].real_address = demo_addr;
     inverted_table[demo_addr] = promo_addr;
     remap_table[real_demo_addr].real_address = tmp;
+*/
 /*
     qac = remap_table[promo_addr].QAC;
     remap_table[promo_addr].QAC = remap_table[real_demo_addr].QAC;
@@ -170,12 +173,12 @@ bool Migrator::IsMapped(uint64_t addr)
     return remap_table.find(addr) != remap_table.end();
 }
 
-void Migrator::Add2RemapTable(uint64_t addr, STentry stentry)
+void Migrator::Add2RemapTable(uint64_t addr, ST_entry stentry)
 {
     remap_table[addr] = stentry;
 }
 
-STentry Migrator::GetEntryFromRemapTable(uint64_t addr)
+ST_entry Migrator::GetEntryFromRemapTable(uint64_t addr)
 {
     assert(remap_table.find(addr)!=remap_table.end());
     return remap_table[addr];
@@ -184,21 +187,38 @@ STentry Migrator::GetEntryFromRemapTable(uint64_t addr)
 uint64_t Migrator::GetFromInvertedTable(uint64_t addr)
 {
     if(inverted_table.find(addr) == inverted_table.end())
-    return addr;
+    return MAX_UINT64;
     //assert(inverted_table.find(addr)!=inverted_table.end());
     return inverted_table[addr];
 }
 
 void Migrator::Add2InvertedTable(uint64_t src_addr, uint64_t dst_addr)
 {
-   inverted_table[dst_addr] = src_addr;
+    inverted_table[dst_addr] = src_addr;
 }
  
+bool Migrator::IsInDRAM(uint64_t address)
+{
+    ST_entry real_target = remap_table[address];
+    uint64_t row_t; uint64_t col_t; uint64_t bank_t;
+    uint64_t rank_t; uint64_t channel_t; uint64_t subarray_t;
+    AddressTranslator::Translate( real_target.real_address, &row_t, &col_t, &bank_t, &rank_t, &channel_t, &subarray_t );
+    return channel_t == 0;
+}
+
 void Migrator::SetMigrationState( NVMAddress& address, MigratorState newState )
 {
     /* Get the key and set the new state; Ensure the state is really new. */
+/*
+    uint64_t real_addr = address.GetPhysicalAddress();
+    uint64_t row, col, bank, rank, channel, subarray;
+    //migratorTranslator->TranslateWithoutMig(real_addr, &row, &col, &bank, &rank, &channel, &subarray);
+TranslateWithoutMig(real_addr, &row, &col, &bank, &rank, &channel, &subarray);
+    NVMAddress new_address;
+    new_address.SetTranslatedAddress( row, 0, bank, rank, channel, subarray );
+    new_address.SetPhysicalAddress(real_addr);*/
     uint64_t key = GetAddressKey( address );
-
+    //uint64_t key = GetAddressKey( new_address );
     assert( migrationState.count( key ) != 0 );
    assert( migrationState[key] != newState );
 
@@ -227,17 +247,18 @@ bool Migrator::IsMigrated( NVMAddress& address )
 {
     uint64_t key = GetAddressKey( address );
     bool rv = false;
-/*
+
     if( migrationMap.count( key ) != 0 && migrationState.count( key ) != 0
         && migrationState[key] == MIGRATION_DONE )
     {
         rv = true;
     }
-*/
+/*
     if( remap_table.find(address.GetPhysicalAddress())!=remap_table.end() && migrationState.count( key ) != 0 && migrationState[key] == MIGRATION_DONE )
     {
 	rv = true;
     }
+*/
     return rv;
 }
 
@@ -266,6 +287,18 @@ void Migrator::Translate( uint64_t address, uint64_t *row, uint64_t *col, uint64
                           uint64_t *rank, uint64_t *channel, uint64_t *subarray )
 {
     /* Use the default -- We will only change the channel if needed. */
+   
+    uint64_t addr = address;
+    addr >>= 12;
+    addr <<= 12;
+//    assert(addr == address);
+    
+    uint64_t offset = (address & 0xfff);
+    uint64_t real_addr;
+    uint64_t row_t; uint64_t col_t; uint64_t bank_t;
+    uint64_t rank_t; uint64_t channel_t; uint64_t subarray_t;
+
+
     AddressTranslator::Translate( address, row, col, bank, rank, channel, subarray );
 
     
@@ -274,32 +307,31 @@ void Migrator::Translate( uint64_t address, uint64_t *row, uint64_t *col, uint64
     keyAddress.SetTranslatedAddress( *row, *col, *bank, *rank, *channel, *subarray );
     
     keyAddress.SetPhysicalAddress( address );
-    uint64_t key = GetAddressKey( keyAddress );
-uint64_t row_t; uint64_t col_t; uint64_t bank_t;
-                          uint64_t rank_t; uint64_t channel_t; uint64_t subarray_t;
+    //uint64_t key = GetAddressKey( keyAddress );
 
-    uint64_t real_addr = remap_table[address].real_address;
-    AddressTranslator::Translate( real_addr, &row_t, &col_t, &bank_t, &rank_t, &channel_t, &subarray_t );
 
 
 
     /* Check if the page was migrated and migration is complete. */
     //if( remap_table.count(key) != 0 )
     
-    if( remap_table.count(address) != 0 )
-    // if( migrationMap.count( key ) != 0 )
+    if( remap_table.count(addr) != 0 )
+   // if( migrationMap.count( key ) != 0 )
     {
-        if( migrationState[key] == MIGRATION_DONE )
+      //  if( migrationState[key] == MIGRATION_DONE )
         {
-           // *channel = migrationMap[key];
+          //  *channel = migrationMap[key];
 		//if(*channel != channel_t){cout<<"diff:"<<*channel<<" "<<channel_t<<std::endl;}
-
+        uint64_t real_page = remap_table[addr].real_address;
+        real_addr = real_page | offset;
+        AddressTranslator::Translate( real_addr, &row_t, &col_t, &bank_t, &rank_t, &channel_t, &subarray_t );
 	    *channel = channel_t;
 	    *row = row_t;
 	    *col = col_t;
-	    *bank = bank_t;
+	     *bank = bank_t;
 	    *rank = rank_t;
 	    *subarray = subarray_t;
+
             migratedAccesses++;
         }
     }

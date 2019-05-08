@@ -222,10 +222,10 @@ void FRFCFS::Cycle( ncycle_t steps )
     NVMainRequest *nextRequest = NULL;
 
     /*gyx:for debug  output the physical address;*/
-    std::ofstream outputT;
+    /*std::ofstream outputT;
     outputT.open("/home/hx/gem5/Trace-queue.txt",std::ios::app);
     outputT <<memQueue->size() << std::endl;
-
+    */
 
 
 

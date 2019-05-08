@@ -378,6 +378,16 @@ bool NVMain::IssueCommand( NVMainRequest *request )
         return false;
     }
 
+	/*gyx:for debug  output the physical address;*/
+	   /* std::ofstream output_mig;
+	    output_mig.open("/home/hx/gem5/TraceIssue.txt",std::ios::app);
+	    output_mig<<request->threadId<<" "<<request->address.GetPhysicalAddress()<<" "<<request->type<<std::endl;
+	 */
+
+
+
+
+
     /* Translate the address, then copy to the address struct, and copy to request. */
     GetDecoder( )->Translate( request->address.GetPhysicalAddress( ), 
                            &row, &col, &bank, &rank, &channel, &subarray );
